@@ -2,7 +2,7 @@ fomega is an interpreter for the F-omega language, written in OCaml.
 
 Refer to the INSTALL file for instructions for building fomega.
 
-In addition to interpretation of F-omega expressions, fomega provides convenience commands to define terms/tyes and to create term/type judgements. Type 'help' at the interpretr prompt for the syntax of these commands.
+In addition to interpretation of F-omega expressions, fomega provides convenience commands to define terms/types and to create term/type judgements. Type 'help' at the interpreter prompt for the syntax of these commands.
 
 A sample fomega session (edited for clarity):
 

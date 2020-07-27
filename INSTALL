@@ -1,0 +1,20 @@
+To build the interpreter:
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+ocamlfind ocamlopt -o fomega -linkpkg -package str fomega.ml main.ml
+
+This will build the interpreter executable 'fomega', which is stand-alone and can be moved to and executed from any location.
+
+To build the test cases driver program:
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+ocamlfind ocamlopt -o test_fomega -linkpkg -package ounit2 -package str fomega.ml fomega_test.ml
+
+This will build the test cases driver 'test_fomega', which is also stand-alone and can be moved to and executed from any location. There are 173 test cases, and all should pass. If not, Houston, we have a problem.
+
+
+Prerequisites:
+~~~~~~~~~~~~~~
+
+* OCaml compiler and related utilities (version 4.09.0 or higher; may work with lower versions too, not tested)
+* Ounit2 package of OCaml (for compiling and running the test cases)

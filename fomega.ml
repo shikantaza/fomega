@@ -120,39 +120,6 @@ let rec equiv_types t1 t2 =
   | (TApp (t1', t2'), TApp (s1, s2))                   -> equiv_types t1' s1 && equiv_types t2' s2
   | (_, _)                                             -> false
 
-let rec get_type term1 term_env type_env =
-  match term1 with
-  | TermVariable var             -> get term_env var
-  | Abs((v1,type1), term2)       -> if (get_kind type1 type_env) = (Some TypeKind) then
-                                       match get_type term2 (update_term_env term_env v1 type1) type_env with
-                                       | Some typ -> Some (ArrowType(type1, typ))
-                                       | None     -> raise (FOmegaException "Unable to get type of operand of application")
-                                    else
-                                      raise (FOmegaException "Type of binding of abstraction should be of kind '*' (maybe the binding variable's type is unkinded?)")
-  | App(e1, e2)                  -> (match (get_type e2 term_env type_env) with
-                                     | Some type2 -> (match (get_type e1 term_env type_env) with
-                                                      | Some ArrowType(type1', type2') -> if (equiv_types type1' type2) then
-                                                                                            Some type2'
-                                                                                          else
-                                                                                            raise (FOmegaException "Type mismatch in application")
-                                                      | _                              -> raise (FOmegaException "Application of a non-ArrowType"))
-                                     | None       -> raise (FOmegaException "Operand of application is not typed"))
-  | PAbs((t1, kind1), term2)     -> (match (get_type term2 term_env (update_type_env type_env t1 kind1)) with
-                                     | Some type1 -> Some (Forall((t1, kind1), type1))
-                                     | None       -> raise (FOmegaException "Unable to get type of body of polymorphic abstraction"))
-  | PApp(e, sigma)               -> (match (get_type e term_env type_env) with
-                                     | Some Forall((alpha, kappa), tau) -> if (get_kind sigma type_env) = Some kappa then
-                                                                             Some (replace_type_var tau alpha sigma)
-                                                                           else
-                                                                             raise (FOmegaException "Type mismatch in polymorphic application ")
-                                     | _                                -> raise (FOmegaException "Polymorphic application of a non-Forall or untyped term"))
- 
-
-let is_type e sigma term_env type_env =
-  match (get_type e term_env type_env) with
-  | Some tau -> ((get_kind tau type_env) = (Some TypeKind)) && (equiv_types tau sigma)
-  | None     -> raise (FOmegaException "is_type: unable to get type of argument")
-
 let rec replace_term_var term1 var1 term2 =
   match term1 with
   | TermVariable v                -> if v = var1 then term2 else term1
@@ -172,31 +139,24 @@ let rec replace_type_var_in_term term1 var1 type2 =
 let rec reduce term1 term_env type_env =
   match term1 with
   | TermVariable v                   -> term1
-  | Abs((var, typ), e)               -> Abs((var, typ), reduce e term_env type_env)
+  | Abs((var, typ), e)               -> Abs((var, typ), reduce e (update_term_env term_env var typ) type_env)
   | App(Abs((var, typ), e), e1)      -> (match (get_type e1 term_env type_env) with
                                          | Some type1 -> if not (equiv_types typ type1) then
-                                                           raise (FOmegaException "Typing error in application")
+                                                           raise (FOmegaException ("Typing error in application" ^ " - " ^ (string_of_term term1)))
                                                          else
                                                            replace_term_var e var e1
-                                         | None       -> raise (FOmegaException "Unable to get type of operand for application"))
+                                         | None       -> raise (FOmegaException ("Unable to get type of operand for application" ^ " - " ^ (string_of_term term1))))
   | App(e1, e2)                      -> App(reduce e1 term_env type_env, reduce e2 term_env type_env)
-  | PAbs((var, kind), e)             -> PAbs((var, kind), reduce e term_env type_env)
+  | PAbs((var, kind), e)             -> PAbs((var, kind), reduce e term_env (update_type_env type_env var kind))
   | PApp(PAbs((var, kind1), e), tau) -> (match (get_kind tau type_env) with
                                          | Some kind1' -> if not (equiv_kinds (Some kind1) (Some kind1')) then
-                                                            raise (FOmegaException "Kinding error in polymorphic application")
+                                                            raise (FOmegaException ("Kinding error in polymorphic application" ^ " - " ^ (string_of_term term1)))
                                                           else    
                                                             replace_type_var_in_term e var tau
-                                         | None        -> raise (FOmegaException "Unable to get kind of operand for polymorphic application"))
+                                         | None        -> raise (FOmegaException ("Unable to get kind of operand for polymorphic application" ^ " - " ^ (string_of_term term1))))
   | PApp(e1, t1)                     -> PApp(reduce e1 term_env type_env, t1)
 
-let rec evaluate term1 term_env type_env =
-  let reduced_term = reduce term1 term_env type_env in
-    if not (reduced_term = term1) then
-      evaluate reduced_term term_env type_env
-    else
-      reduced_term
-
-let rec string_of_term term1 =
+and string_of_term term1 =
   match term1 with
   | TermVariable x    -> x
   | App(e1, e2) -> "(" ^ (string_of_term e1) ^ " " ^ (string_of_term e2) ^ ")"
@@ -217,6 +177,45 @@ and string_of_kind kind1 =
   | TypeKind          -> "*"
   | ArrowKind(k1, k2) -> "(" ^ (string_of_kind k1) ^ "->" ^ (string_of_kind k2) ^ ")"
 
+and get_type term1 term_env type_env =
+  match term1 with
+  | TermVariable var             -> get term_env var
+  | Abs((v1,type1), term2)       -> if (get_kind type1 type_env) = (Some TypeKind) then
+                                       match get_type term2 (update_term_env term_env v1 type1) type_env with
+                                       | Some typ -> Some (ArrowType(type1, typ))
+                                       | None     -> raise (FOmegaException ("Unable to get type of operand of application" ^ " - " ^ (string_of_term term1)))
+                                    else
+                                      raise (FOmegaException ("Type of binding of abstraction should be of kind '*' (maybe the binding variable's type is unkinded?)" ^ " - " ^ (string_of_term term1)))
+  | App(e1, e2)                  -> (match (get_type e2 term_env type_env) with
+                                     | Some type2 -> (match (get_type e1 term_env type_env) with
+                                                      | Some ArrowType(type1', type2') -> if (equiv_types type1' type2) then
+                                                                                            Some type2'
+                                                                                          else
+                                                                                            raise (FOmegaException ("Type mismatch in application" ^ " - " ^ (string_of_term term1)))
+                                                      | _                              -> raise (FOmegaException ("Application of a non-ArrowType" ^ " - " ^ (string_of_term term1))))
+                                     | None       -> raise (FOmegaException ("Operand of application is not typed" ^ " - " ^ (string_of_term term1))))
+  | PAbs((t1, kind1), term2)     -> (match (get_type term2 term_env (update_type_env type_env t1 kind1)) with
+                                     | Some type1 -> Some (Forall((t1, kind1), type1))
+                                     | None       -> raise (FOmegaException ("Unable to get type of body of polymorphic abstraction" ^ " - " ^ (string_of_term term1))))
+  | PApp(e, sigma)               -> (match (get_type e term_env type_env) with
+                                     | Some Forall((alpha, kappa), tau) -> if (get_kind sigma type_env) = Some kappa then
+                                                                             Some (replace_type_var tau alpha sigma)
+                                                                           else
+                                                                             raise (FOmegaException ("Type mismatch in polymorphic application" ^ " - " ^ (string_of_term term1)))
+                                     | _                                -> raise (FOmegaException ("Polymorphic application of a non-Forall or untyped term" ^ " - " ^ (string_of_term term1))))
+ 
+let is_type e sigma term_env type_env =
+  match (get_type e term_env type_env) with
+  | Some tau -> ((get_kind tau type_env) = (Some TypeKind)) && (equiv_types tau sigma)
+  | None     -> raise (FOmegaException "is_type: unable to get type of argument")
+                       
+let rec evaluate term1 term_env type_env =
+  let reduced_term = reduce term1 term_env type_env in
+    if not (reduced_term = term1) then
+      evaluate reduced_term term_env type_env
+    else
+      reduced_term
+                       
 (*
  * parser functions begin
 *)

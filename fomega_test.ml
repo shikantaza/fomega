@@ -930,6 +930,13 @@ let test_parse_and_evaluate_10 test_ctxt =
     assert_equal (parse_and_evaluate (tapp ^ " " ^ _F ^ " " ^ first ^ " " ^ _T ^ " \\x:" ^ _F ^ ".(x A)") term_env type_env)
                  (parse_and_evaluate (first ^ " A") term_env type_env)
 
+let test_parse_and_evaluate_11 test_ctxt =
+  let zero = parse_and_evaluate "/\\A:*.\\z:A.\\s:A->A.z" (empty_env ()) (empty_env ()) in
+  let succ = parse_and_evaluate "\\n:\\/A:*.(A->((A->A)->A))./\\A:*.\\z:A.\\s:A->A.(s (n A z s))" (empty_env ()) (empty_env ()) in
+  let result = parse_and_evaluate "/\\A:*.\\z:A.\\s:(A->A).(s z)" (empty_env ()) (empty_env ()) in
+    assert_equal (evaluate (App(succ, zero)) (empty_env ()) (empty_env ()))
+                 result
+  
 let test_get_free_term_variables_1 test_ctxt =                 
   assert_equal (get_free_term_variables (parse_and_evaluate "x" (empty_env()) (empty_env()))) ["x"]
 
@@ -1219,6 +1226,7 @@ let tests = "Test suite for FOmega" >:::  [
   "test_parse_and_evaluate_8" >:: test_parse_and_evaluate_8;
   "test_parse_and_evaluate_9" >:: test_parse_and_evaluate_9;
   "test_parse_and_evaluate_10" >:: test_parse_and_evaluate_10;
+  "test_parse_and_evaluate_11" >:: test_parse_and_evaluate_11;
 
   "test_get_free_term_variables_1" >:: test_get_free_term_variables_1;
   "test_get_free_term_variables_2" >:: test_get_free_term_variables_2;

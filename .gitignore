@@ -1,0 +1,10 @@
+fomega
+*.cmi
+*.cmx
+*.o
+metacirc_interpreter.txt
+*.log
+*.cache
+test_fomega
+*~
+

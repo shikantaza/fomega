@@ -1,0 +1,7 @@
+deftype NAT \/A:*.A->(A->A)->A
+
+defvar zero /\A:*.\z:A.\s:A->A.z
+
+defvar succ \n:NAT./\A:*.\z:A.\s:A->A.(s (n A z s))
+
+defvar plus \m:NAT.\n:NAT./\A:*.\z:A.\s:A->A.(m A (n A z s) s)

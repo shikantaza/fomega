@@ -936,6 +936,17 @@ let test_parse_and_evaluate_11 test_ctxt =
   let result = parse_and_evaluate "/\\A:*.\\z:A.\\s:(A->A).(s z)" (empty_env ()) (empty_env ()) in
     assert_equal (evaluate (App(succ, zero)) (empty_env ()) (empty_env ()))
                  result
+
+let test_parse_and_evaluate_12 test_ctxt =
+  let types = Hashtbl.create 100 in
+  let (index, type1) = parse_type "\\/A:*.A->(A->A)->A" 0 in
+  let _ = Hashtbl.add types "NAT" type1 in
+  let zero = parse_and_evaluate "/\\A:*.\\z:A.\\s:A->A.z" (empty_env ()) (empty_env ()) in
+  let (index1, term1) = parse_term "\\n:NAT./\\A:*.\\z:A.\\s:A->A.(s (n A z s))" 0 in
+  let succ = evaluate (expand term1 (Hashtbl.create 100) types) (empty_env ()) (empty_env ()) in
+  let result = parse_and_evaluate "/\\A:*.\\z:A.\\s:(A->A).(s z)" (empty_env ()) (empty_env ()) in
+    assert_equal (evaluate (App(succ, zero)) (empty_env ()) (empty_env ()))
+                 result
   
 let test_get_free_term_variables_1 test_ctxt =                 
   assert_equal (get_free_term_variables (parse_and_evaluate "x" (empty_env()) (empty_env()))) ["x"]
@@ -987,6 +998,10 @@ let test_get_free_type_variables_4 test_ctxt =
 let test_get_free_type_variables_5 test_ctxt =                 
   assert_equal (get_free_type_variables (parse_and_evaluate "/\\X:*.(a X Y)" (empty_env()) (empty_env()))) ["Y"]
 
+let test_get_free_type_variables_6 test_ctxt =
+  let (index, term1) = (parse_term "\\n:NAT./\\A:*.\\z:A.\\s:A->A.(s (n A z s))" 0) in
+    assert_equal (get_free_type_variables term1) ["NAT"]
+  
 let test_replace_free_vars_1 test_ctxt =
   let term1 = TermVariable "a" in
   let terms = empty_env () in
@@ -1227,6 +1242,7 @@ let tests = "Test suite for FOmega" >:::  [
   "test_parse_and_evaluate_9" >:: test_parse_and_evaluate_9;
   "test_parse_and_evaluate_10" >:: test_parse_and_evaluate_10;
   "test_parse_and_evaluate_11" >:: test_parse_and_evaluate_11;
+  "test_parse_and_evaluate_12" >:: test_parse_and_evaluate_12;
 
   "test_get_free_term_variables_1" >:: test_get_free_term_variables_1;
   "test_get_free_term_variables_2" >:: test_get_free_term_variables_2;
@@ -1245,6 +1261,7 @@ let tests = "Test suite for FOmega" >:::  [
   "test_get_free_type_variables_3" >:: test_get_free_type_variables_3;
   "test_get_free_type_variables_4" >:: test_get_free_type_variables_4;
   "test_get_free_type_variables_5" >:: test_get_free_type_variables_5;
+  "test_get_free_type_variables_6" >:: test_get_free_type_variables_6;
 
   "test_replace_free_vars_1" >:: test_replace_free_vars_1;
   "test_replace_free_vars_2" >:: test_replace_free_vars_2;

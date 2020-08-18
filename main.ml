@@ -69,7 +69,8 @@ let main () =
         exp := sub !response !start_of_exp ((length !response) - !start_of_exp);
         
         try
-          let v1 = (parse_and_evaluate !exp term_env type_env) in
+          let (index, v1') = (parse_term !exp 0) in
+          let v1 = (evaluate (expand v1' terms types) term_env type_env) in
           let t1 = (match (get_type v1 term_env type_env) with
                     | Some t1' -> t1'
                     | None    -> raise (FOmegaException "Unable to get type of term")) in

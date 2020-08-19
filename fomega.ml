@@ -105,8 +105,8 @@ let rec replace_type_var type1 var1 type2 =
   match type1 with
   | TypeVariable v                -> if v = var1 then type2 else type1
   | ArrowType (t1, t2)            -> ArrowType (replace_type_var t1 var1 type2, replace_type_var t2 var1 type2)
-  | Forall ((var, kind1), type1') -> Forall ((var, kind1), replace_type_var type1' var1 type2)
-  | TAbs ((var, kind1), type1')   -> TAbs ((var, kind1), replace_type_var type1' var1 type2)
+  | Forall ((var, kind1), type1') -> if (not (var = var1)) then Forall ((var, kind1), replace_type_var type1' var1 type2) else Forall ((var, kind1), type1')
+  | TAbs ((var, kind1), type1')   -> if (not (var = var1)) then TAbs ((var, kind1), replace_type_var type1' var1 type2) else TAbs ((var, kind1), type1')
   | TApp (t1, t2)                 -> TApp (replace_type_var t1 var1 type2, replace_type_var t2 var1 type2)
 
 
@@ -123,7 +123,7 @@ let rec equiv_types t1 t2 =
 let rec replace_term_var term1 var1 term2 =
   match term1 with
   | TermVariable v                -> if v = var1 then term2 else term1
-  | Abs ((var, type1), term1')    -> Abs ((var, type1), replace_term_var term1' var1 term2)
+  | Abs ((var, type1), term1')    -> if (not (var = var1)) then Abs((var, type1), replace_term_var term1' var1 term2) else Abs ((var, type1), term1')
   | App (e1, e2)                  -> App (replace_term_var e1 var1 term2, replace_term_var e2 var1 term2)
   | PAbs ((var, kind1), term1')   -> PAbs ((var, kind1), replace_term_var term1' var1 term2)
   | PApp (e1, t2)                 -> PApp (replace_term_var e1 var1 term2, t2)
@@ -133,7 +133,7 @@ let rec replace_type_var_in_term term1 var1 type2 =
   | TermVariable v                -> term1
   | Abs ((var, type1), term1')    -> Abs ((var, replace_type_var type1 var1 type2), replace_type_var_in_term term1' var1 type2)
   | App (e1, e2)                  -> App (replace_type_var_in_term e1 var1 type2, replace_type_var_in_term e2 var1 type2)
-  | PAbs ((var, kind1), term1')   -> PAbs ((var, kind1), replace_type_var_in_term term1' var1 type2)
+  | PAbs ((var, kind1), term1')   -> if (not (var = var1)) then PAbs ((var, kind1), replace_type_var_in_term term1' var1 type2) else PAbs ((var, kind1), term1')
   | PApp (e1, t2)                 -> PApp (replace_type_var_in_term e1 var1 type2, replace_type_var t2 var1 type2)
 
 let rec reduce term1 term_env type_env =

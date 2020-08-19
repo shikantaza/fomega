@@ -947,7 +947,25 @@ let test_parse_and_evaluate_12 test_ctxt =
   let result = parse_and_evaluate "/\\A:*.\\z:A.\\s:(A->A).(s z)" (empty_env ()) (empty_env ()) in
     assert_equal (evaluate (App(succ, zero)) (empty_env ()) (empty_env ()))
                  result
-  
+
+let test_parse_and_evaluate_13 test_ctxt =
+  let types = Hashtbl.create 100 in
+  let (index, type1) = parse_type "\\/A:*.A->(A->A)->A" 0 in
+  let _ = Hashtbl.add types "NAT" type1 in
+  let zero = parse_and_evaluate "/\\A:*.\\z:A.\\s:A->A.z" (empty_env ()) (empty_env ()) in
+  let (index1, term1) = parse_term "\\n:NAT./\\A:*.\\z:A.\\s:A->A.(s (n A z s))" 0 in
+  let (index2, term2) = parse_term "\\m:NAT.\\n:NAT.(m NAT n succ)" 0 in
+  let succ = evaluate (expand term1 (Hashtbl.create 100) types) (empty_env ()) (empty_env ()) in
+  let plus = evaluate (expand term2 (Hashtbl.create 100) types) (empty_env ()) (empty_env ()) in
+  let result = parse_and_evaluate "/\\A:*.\\z:A.\\s:(A->A).(s (s (s (s z))))" (empty_env ()) (empty_env ()) in
+  let terms = Hashtbl.create 100 in
+  let _ = Hashtbl.add terms "zero" zero in
+  let _ = Hashtbl.add terms "succ" succ in
+  let _ = Hashtbl.add terms "plus" plus in
+  let (index4, term1) = parse_term "(plus (plus (succ zero) (succ zero)) (plus (succ zero) (succ zero)))" 0 in
+    assert_equal (evaluate (expand term1 terms types) (empty_env ()) (empty_env ()))
+                 result
+
 let test_get_free_term_variables_1 test_ctxt =                 
   assert_equal (get_free_term_variables (parse_and_evaluate "x" (empty_env()) (empty_env()))) ["x"]
 
@@ -1243,6 +1261,7 @@ let tests = "Test suite for FOmega" >:::  [
   "test_parse_and_evaluate_10" >:: test_parse_and_evaluate_10;
   "test_parse_and_evaluate_11" >:: test_parse_and_evaluate_11;
   "test_parse_and_evaluate_12" >:: test_parse_and_evaluate_12;
+  "test_parse_and_evaluate_13" >:: test_parse_and_evaluate_13;
 
   "test_get_free_term_variables_1" >:: test_get_free_term_variables_1;
   "test_get_free_term_variables_2" >:: test_get_free_term_variables_2;

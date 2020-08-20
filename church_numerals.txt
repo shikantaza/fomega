@@ -1,11 +1,27 @@
 deftype NAT \/A:*.A->(A->A)->A
-
 defvar zero /\A:*.\z:A.\s:A->A.z
-
 defvar succ \n:NAT./\A:*.\z:A.\s:A->A.(s (n A z s))
-
 defvar otherplus \m:NAT.\n:NAT./\A:*.\z:A.\s:A->A.(m A (n A z s) s)
-
 defvar plus \m:NAT.\n:NAT.(m NAT n succ)
 
-       
+deftype BOOL \/A:*.A->A->A
+defvar true /\A:*.\t:A.\f:A.t
+defvar false /\A:*.\t:A.\f:A.f
+defvar and \p:BOOL.\q:BOOL./\A:*.\t:A.\f:A.(p A (q A t f) f)       
+
+deftype BOOLS \/A:*.(BOOL->BOOL->A)->A
+defvar bools \p:BOOL.\q:BOOL./\A:*.\f:BOOL->BOOL->A.(f p q)
+defvar fst \bs:BOOLS.(bs BOOL (\p:BOOL.\q:BOOL.p))
+defvar snd \bs:BOOLS.(bs BOOL (\p:BOOL.\q:BOOL.q)) 
+
+deftype OP \F:*->*.\A:(*->*)->*.(F (A F))
+deftype STRIP \F:*->*.\A:*.\/B:*.(\/C:*.((F C)->B))->A->B
+deftype ABS \F:*->*.\/A:*.\/B:*.((F A)->(F B))->(F ((F A)->(F B)))
+deftype APP \F:*->*.\/A:*.\/B:*.(F ((F A)->(F B)))->(F A)->(F B)
+deftype TABS \F:*->*.\/A:*.(STRIP F A)->A->(F A)
+deftype TAPP \F:*->*.\/A:*.(F A)->(\/B:*.(A->(F B))->(F B))
+deftype EXP \A:(*->*)->*.(\/F:*->*.(ABS F)->(APP F)->(TABS F)->(TAPP F)->(OP F A))
+
+defvar foldexp /\F:*->*.\abs:(ABS F).\app:(APP F).\tabs:(TABS F).\tapp:(TAPP F)./\A:(*->*)->*.\e:(EXP A).(e F abs app tabs tapp)
+
+

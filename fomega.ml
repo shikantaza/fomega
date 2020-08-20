@@ -177,7 +177,7 @@ and string_of_kind kind1 =
   | TypeKind          -> "*"
   | ArrowKind(k1, k2) -> "(" ^ (string_of_kind k1) ^ "->" ^ (string_of_kind k2) ^ ")"
 
-and get_type term1 term_env type_env =
+and get_type_internal term1 term_env type_env =
   match term1 with
   | TermVariable var             -> get term_env var
   | Abs((v1,type1), term2)       -> if (get_kind type1 type_env) = (Some TypeKind) then
@@ -203,7 +203,33 @@ and get_type term1 term_env type_env =
                                                                            else
                                                                              raise (FOmegaException ("Type mismatch in polymorphic application" ^ " - " ^ (string_of_term term1)))
                                      | _                                -> raise (FOmegaException ("Polymorphic application of a non-Forall or untyped term" ^ " - " ^ (string_of_term term1))))
- 
+
+and fully_reduce_type type1 type_env =
+  let reduced_type = reduce_type type1 type_env in
+    if not (reduced_type = type1) then
+      fully_reduce_type reduced_type type_env
+    else
+      reduced_type
+                                  
+and get_type term1 term_env type_env =
+  match (get_type_internal term1 term_env type_env) with
+  | Some typ -> Some (fully_reduce_type typ type_env)
+  | _        -> raise (FOmegaException ("Unable to get type of term" ^ " - " ^ (string_of_term term1)))
+
+and reduce_type type1' type_env =
+  match type1' with
+  | TypeVariable v                         -> TypeVariable v
+  | ArrowType (t1, t2)                     -> ArrowType(reduce_type t1 type_env, reduce_type t2 type_env)
+  | Forall ((var, kind1), type1)           -> Forall((var, kind1), reduce_type type1 (update_type_env type_env var kind1))
+  | TAbs ((var, kind1), type1)             -> TAbs((var, kind1), reduce_type type1 (update_type_env type_env var kind1))
+  | TApp(TAbs((var, kind1), type1), type2) -> (match (get_kind type2 type_env) with
+                                               | Some kind1' -> if not (equiv_kinds (Some kind1) (Some kind1')) then
+                                                                  raise (FOmegaException ("Kinding error while applying type function" ^ " - " ^ (string_of_type type1')))
+                                                                else    
+                                                                  replace_type_var type1 var type2
+                                               | None        -> raise (FOmegaException ("Unable to get kind of operand for applying type function" ^ " - " ^ (string_of_type type1'))))                               
+  | TApp (type1, type2)                    -> TApp(reduce_type type1 type_env, reduce_type type2 type_env)
+                                    
 let is_type e sigma term_env type_env =
   match (get_type e term_env type_env) with
   | Some tau -> ((get_kind tau type_env) = (Some TypeKind)) && (equiv_types tau sigma)

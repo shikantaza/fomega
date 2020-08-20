@@ -25,3 +25,19 @@ deftype EXP \A:(*->*)->*.(\/F:*->*.(ABS F)->(APP F)->(TABS F)->(TAPP F)->(OP F A
 defvar foldexp /\F:*->*.\abs:(ABS F).\app:(APP F).\tabs:(TABS F).\tapp:(TAPP F)./\A:(*->*)->*.\e:(EXP A).(e F abs app tabs tapp)
 
 
+deftype KNAT \A:*.NAT
+defvar sizeabs /\A:*./\B:*.\f:NAT->NAT.(succ (f (succ zero)))
+defvar sizeapp /\A:*./\B:*.\f:NAT.\x:NAT.(succ (plus f x))
+defvar sizetabs /\A:*.\strip:(STRIP KNAT A).\f:A.(succ (strip NAT (/\A:*.\x:NAT.x) f))
+defvar sizetapp /\A:*.\f:NAT./\B:*.\inst:A->NAT.(succ f)
+defvar size (foldexp KNAT sizeabs sizeapp sizetabs sizetapp)
+
+
+deftype ID \A:*.A
+defvar unabs /\A:*./\B:*.\f:A->B.f
+defvar unapp /\A:*./\B:*.\f:A->B.\x:A.(f x)
+defvar untabs /\A:*.\s:(STRIP ID A).\f:A.f
+defvar untapp /\A:*.\f:A./\B:*.\g:A->B.(g f)
+defvar unquote (foldexp ID unabs unapp untabs untapp)
+
+defvar rep /\F:*->*.\abs:(ABS F).\app:(APP F).\tabs:(TABS F).\tapp:(TAPP F).(tabs \/A:*.(F (F A)->(F A)) /\A:*.\f:(\/B:*.(F B)->A).\x:(\/C:*.(F (\A:*.((F A)->(F A)) C))).(f ((\A:*.(F A)->(F A)) SIGMA) (x SIGMA)) /\A:*.(abs A A (\x:(F A).x)))

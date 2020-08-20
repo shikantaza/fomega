@@ -79,6 +79,19 @@ let rec equiv_kinds k1 k2 =
   | (Some ArrowKind (k1, k2), Some ArrowKind (k1', k2')) -> equiv_kinds (Some k1) (Some k1') && equiv_kinds (Some k2) (Some k2')
   | _                                                    -> false
 
+let rec string_of_type type1 =
+  match type1 with
+  | TypeVariable x    -> x
+  | ArrowType(t1, t2) -> "(" ^ (string_of_type t1) ^ "->" ^ (string_of_type t2) ^ ")"
+  | Forall((t1,k), t2) -> "\\/" ^ t1 ^ ":" ^ (string_of_kind k) ^ "." ^ (string_of_type t2)
+  | TAbs((t1,k), t2)    -> "\\" ^ t1 ^ ":" ^ (string_of_kind k) ^ "." ^ (string_of_type t2)
+  | TApp(t1, t2)       -> "(" ^ (string_of_type t1) ^ " " ^ (string_of_type t2) ^ ")"
+
+and string_of_kind kind1 =
+  match kind1 with
+  | TypeKind          -> "*"
+  | ArrowKind(k1, k2) -> "(" ^ (string_of_kind k1) ^ "->" ^ (string_of_kind k2) ^ ")"
+                                                          
 let rec get_kind type1 type_env =
   match type1 with
   | TypeVariable name            -> get type_env name
@@ -86,20 +99,20 @@ let rec get_kind type1 type_env =
                                        get_kind t2 type_env = Some TypeKind then
                                       Some TypeKind
                                     else
-                                      raise (FOmegaException "Unable to get kind of ArrowType")
+                                      raise (FOmegaException ("Unable to get kind of ArrowType" ^ " - " ^ (string_of_type type1)))
   | Forall ((var, kind1), type1) -> if get_kind type1 (update_type_env type_env var kind1) = Some TypeKind then
                                       Some TypeKind
                                     else
-                                      raise (FOmegaException "Unable to get kind of Forall")
+                                      raise (FOmegaException ("Unable to get kind of Forall" ^ " - " ^ (string_of_type type1)))
   | TAbs ((var, kind1), type1)   -> (match get_kind type1 (update_type_env type_env var kind1) with
                                      | Some k ->  Some (ArrowKind (kind1, k))
-                                     | None   ->  raise (FOmegaException "Unable to get kind of TAbs"))
-  | TApp (type1, type2)          -> let k1 = get_kind type1 type_env in
-                                    let k2 = get_kind type2 type_env in
+                                     | None   ->  raise (FOmegaException ("Unable to get kind of TAbs" ^ " - " ^ (string_of_type type1))))
+  | TApp (type1', type2')        -> let k1 = get_kind type1' type_env in
+                                    let k2 = get_kind type2' type_env in
                                       (match k1 with
                                        | Some ArrowKind(k2', k) -> if (equiv_kinds k2 (Some k2')) then Some k
-                                                                   else raise (FOmegaException "Type mismatch in type application")
-                                       | _                      -> raise (FOmegaException "Type application of non-ArrowType"))
+                                                                   else raise (FOmegaException ("Kind mismatch in type application" ^ " - " ^ (string_of_type type1)))
+                                       | _                      -> raise (FOmegaException ("Type application of non-ArrowType" ^ " - " ^ (string_of_type type1))))
 
 let rec replace_type_var type1 var1 type2 =
   match type1 with
@@ -139,9 +152,9 @@ let rec replace_type_var_in_term term1 var1 type2 =
 let rec reduce term1 term_env type_env =
   match term1 with
   | TermVariable v                   -> term1
-  | Abs((var, typ), e)               -> Abs((var, typ), reduce e (update_term_env term_env var typ) type_env)
+  | Abs((var, typ), e)               -> Abs((var, (fully_reduce_type typ type_env)), reduce e (update_term_env term_env var (fully_reduce_type typ type_env)) type_env)
   | App(Abs((var, typ), e), e1)      -> (match (get_type e1 term_env type_env) with
-                                         | Some type1 -> if not (equiv_types typ type1) then
+                                         | Some type1 -> if not (equiv_types (fully_reduce_type typ type_env) type1) then
                                                            raise (FOmegaException ("Typing error in application" ^ " - " ^ (string_of_term term1)))
                                                          else
                                                            replace_term_var e var e1
@@ -163,19 +176,6 @@ and string_of_term term1 =
   | Abs((v, t), e)    -> "\\" ^ v ^ ":" ^ (string_of_type t) ^ "." ^ (string_of_term e)
   | PAbs((t, k), e)   -> "/\\"  ^ t ^ ":" ^ (string_of_kind k) ^ "." ^ (string_of_term e)
   | PApp(e, t)        -> "(" ^ (string_of_term e) ^ " " ^ (string_of_type t) ^ ")"
-
-and string_of_type type1 =
-  match type1 with
-  | TypeVariable x    -> x
-  | ArrowType(t1, t2) -> "(" ^ (string_of_type t1) ^ "->" ^ (string_of_type t2) ^ ")"
-  | Forall((t1,k), t2) -> "\\/" ^ t1 ^ ":" ^ (string_of_kind k) ^ "." ^ (string_of_type t2)
-  | TAbs((t1,k), t2)    -> "\\" ^ t1 ^ ":" ^ (string_of_kind k) ^ "." ^ (string_of_type t2)
-  | TApp(t1, t2)       -> "(" ^ (string_of_type t1) ^ " " ^ (string_of_type t2) ^ ")"
-
-and string_of_kind kind1 =
-  match kind1 with
-  | TypeKind          -> "*"
-  | ArrowKind(k1, k2) -> "(" ^ (string_of_kind k1) ^ "->" ^ (string_of_kind k2) ^ ")"
 
 and get_type_internal term1 term_env type_env =
   match term1 with

@@ -15,11 +15,11 @@ defvar fst \bs:BOOLS.(bs BOOL (\p:BOOL.\q:BOOL.p))
 defvar snd \bs:BOOLS.(bs BOOL (\p:BOOL.\q:BOOL.q)) 
 
 deftype OP \F:*->*.\A:(*->*)->*.(F (A F))
-deftype STRIP \F:*->*.\A:*.\/B:*.(\/C:*.((F C)->B))->A->B
-deftype ABS \F:*->*.\/A:*.\/B:*.((F A)->(F B))->(F ((F A)->(F B)))
-deftype APP \F:*->*.\/A:*.\/B:*.(F ((F A)->(F B)))->(F A)->(F B)
+deftype STRIP \F:*->*.\A:*.\/B:*.(\/C:*.(F C)->B)->A->B
+deftype ABS \F:*->*.\/A:*.\/B:*.((F A)->(F B))->(F (F A)->(F B))
+deftype APP \F:*->*.\/A:*.\/B:*.(F (F A)->(F B))->(F A)->(F B)
 deftype TABS \F:*->*.\/A:*.(STRIP F A)->A->(F A)
-deftype TAPP \F:*->*.\/A:*.(F A)->(\/B:*.(A->(F B))->(F B))
+deftype TAPP \F:*->*.\/A:*.((F A)->(\/B:*.(A->(F B))->(F B)))
 deftype EXP \A:(*->*)->*.(\/F:*->*.(ABS F)->(APP F)->(TABS F)->(TAPP F)->(OP F A))
 
 defvar foldexp /\F:*->*.\abs:(ABS F).\app:(APP F).\tabs:(TABS F).\tapp:(TAPP F)./\A:(*->*)->*.\e:(EXP A).(e F abs app tabs tapp)
@@ -40,4 +40,17 @@ defvar untabs /\A:*.\s:(STRIP ID A).\f:A.f
 defvar untapp /\A:*.\f:A./\B:*.\g:A->B.(g f)
 defvar unquote (foldexp ID unabs unapp untabs untapp)
 
-defvar rep /\F:*->*.\abs:(ABS F).\app:(APP F).\tabs:(TABS F).\tapp:(TAPP F).(tabs \/A:*.(F (F A)->(F A)) /\A:*.\f:(\/B:*.(F B)->A).\x:(\/C:*.(F (\A:*.((F A)->(F A)) C))).(f ((\A:*.(F A)->(F A)) SIGMA) (x SIGMA)) /\A:*.(abs A A (\x:(F A).x)))
+Y : *
+
+defvar rep /\F:*->*.\abs:(ABS F).\app:(APP F).\tabs:(TABS F).\tapp:(TAPP F).(abs Y Y \y:(F Y).y)
+
+unquote \F:*->*.(F Y)->(F Y) rep
+
+size \F:*->*.(F Y)->(F Y) rep
+
+SIGMA : *
+
+defvar rep /\F:*->*.\abs:(ABS F).\app:(APP F).\tabs:(TABS F).\tapp:(TAPP F).(tabs \/Y:*.(F (F Y)->(F Y)) /\A:*.\f:(\/B:*.(F B)->A).\x:(\/C:*.(F (\Y:*.(F Y)->(F Y) C))).(f (\Y:*.(F Y)->(F Y) SIGMA) (x SIGMA)) /\Y:*.(abs Y Y \y:(F Y).y))
+
+unquote \F:*->*.\/Y:*.(F (F Y)->(F Y)) rep
+size \F:*->*.\/Y:*.(F (F Y)->(F Y)) rep

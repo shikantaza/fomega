@@ -123,16 +123,18 @@ let rec replace_type_var type1 var1 type2 =
   | TApp (t1, t2)                 -> TApp (replace_type_var t1 var1 type2, replace_type_var t2 var1 type2)
 
 
+(* replaceing binding variables with lowercase versions to compare TAbs and Forall types without the risk of variable capture *)
 let rec equiv_types t1 t2 =
   match (t1, t2) with
   | (TypeVariable v1, TypeVariable v2)                 -> v1 = v2
   | (ArrowType (t1', t2'), ArrowType (s1, s2))         -> equiv_types t1' s1 && equiv_types t2' s2
-  | (Forall ((a, k1), t1'), Forall((b, k2), t2'))      -> equiv_types t1' (replace_type_var t2' b (TypeVariable a)) && equiv_kinds (Some k1) (Some k2)
-  | (TAbs ((a, k1), t1'), TAbs((b, k2), t2'))          -> equiv_types t1' (replace_type_var t2' b (TypeVariable a)) && equiv_kinds (Some k1) (Some k2)
+  | (Forall ((a, k1), t1'), Forall((b, k2), t2'))      -> equiv_types (replace_type_var t1' a (TypeVariable (String.lowercase_ascii a))) (replace_type_var t2' b (TypeVariable (String.lowercase_ascii a))) && equiv_kinds (Some k1) (Some k2)
+  | (TAbs ((a, k1), t1'), TAbs((b, k2), t2'))          -> equiv_types (replace_type_var t1' a (TypeVariable (String.lowercase_ascii a))) (replace_type_var t2' b (TypeVariable (String.lowercase_ascii a))) && equiv_kinds (Some k1) (Some k2)
   | (TApp (TAbs ((a, k1), t1'), s1), t2')              -> equiv_types t2' (replace_type_var t1' a s1)
   | (TApp (t1', t2'), TApp (s1, s2))                   -> equiv_types t1' s1 && equiv_types t2' s2
   | (_, _)                                             -> false
 
+                                   
 let rec replace_term_var term1 var1 term2 =
   match term1 with
   | TermVariable v                -> if v = var1 then term2 else term1
@@ -161,13 +163,13 @@ let rec reduce term1 term_env type_env =
                                          | None       -> raise (FOmegaException ("Unable to get type of operand for application" ^ " - " ^ (string_of_term term1))))
   | App(e1, e2)                      -> App(reduce e1 term_env type_env, reduce e2 term_env type_env)
   | PAbs((var, kind), e)             -> PAbs((var, kind), reduce e term_env (update_type_env type_env var kind))
-  | PApp(PAbs((var, kind1), e), tau) -> (match (get_kind tau type_env) with
+  | PApp(PAbs((var, kind1), e), tau) -> (match (get_kind (fully_reduce_type tau type_env) type_env) with
                                          | Some kind1' -> if not (equiv_kinds (Some kind1) (Some kind1')) then
                                                             raise (FOmegaException ("Kinding error in polymorphic application" ^ " - " ^ (string_of_term term1)))
                                                           else    
-                                                            replace_type_var_in_term e var tau
+                                                            replace_type_var_in_term e var (fully_reduce_type tau type_env)
                                          | None        -> raise (FOmegaException ("Unable to get kind of operand for polymorphic application" ^ " - " ^ (string_of_term term1))))
-  | PApp(e1, t1)                     -> PApp(reduce e1 term_env type_env, t1)
+  | PApp(e1, t1)                     -> PApp(reduce e1 term_env type_env, (fully_reduce_type t1 type_env))
 
 and string_of_term term1 =
   match term1 with
